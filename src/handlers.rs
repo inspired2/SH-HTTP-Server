@@ -1,70 +1,73 @@
-use std::sync::{Arc, Mutex};
-
 use serde::{Deserialize, Serialize};
-use crate::SmartHouse as House;
+use smart_house::{DeviceInfoProvider};
+use crate::State;
 use actix_web::{
-    delete, get, post,
     web::{self, Data, Json},
     HttpResponse,
 };
 
-type SmartHouse = Data<Arc<Mutex<House>>>;
+type SmartHouse<T> = Data<State<T>>;
 
-#[post("/add_room")]
-pub async fn add_room(house: SmartHouse, room: Json<NewRoom>) -> HttpResponse {
+pub async fn add_room<T>(state: SmartHouse<T>, room: Json<NewRoom>) -> HttpResponse {
     let room = smart_house::Room::with_name(&room.name.to_owned());
-    if let Err(e) = house.lock().unwrap().try_add_room(room) {
+    if let Err(e) = state.house.lock().unwrap().try_add_room(room) {
         println!("error adding a room. {:?}", e);
         return HttpResponse::InternalServerError().json(e.to_string());
     }
     HttpResponse::Ok().json("Room successfully added")
 }
 
-#[post("/add_device")]
-pub async fn add_device(house: SmartHouse, device: Json<NewDevice>) -> HttpResponse {
+pub async fn add_device<T>(state: SmartHouse<T>, device: Json<NewDevice>) -> HttpResponse {
     let NewDevice { room, device } = device.into_inner();
-    if let Err(e) = house.lock().unwrap().try_add_device(&room, &device) {
+    if let Err(e) = state.house.lock().unwrap().try_add_device(&room, &device) {
         return HttpResponse::InternalServerError().json(e.to_string());
     }
     HttpResponse::Ok().json("Device successfully added")
 }
 
-#[delete("/{room}/{device}")]
-pub async fn remove_device(house: SmartHouse, path: web::Path<(String, String)>) -> HttpResponse {
+pub async fn remove_device<T>(state: SmartHouse<T>, path: web::Path<(String, String)>) -> HttpResponse {
     let (room, device) = path.into_inner();
-    if let Err(e) = house.lock().unwrap().try_remove_device(&room, &device) {
+    if let Err(e) = state.house.lock().unwrap().try_remove_device(&room, &device) {
         return HttpResponse::InternalServerError().json(e.to_string());
     }
     HttpResponse::Ok().json("Device successfully removed")
 }
 
-#[delete("/{room}")]
-pub async fn remove_room(house: SmartHouse, path: web::Path<String>) -> HttpResponse {
+pub async fn remove_room<T>(state: SmartHouse<T>, path: web::Path<String>) -> HttpResponse {
     let room = path.into_inner();
-    if let Err(e) = house.lock().unwrap().try_remove_room(&room) {
+    if let Err(e) = state.house.lock().unwrap().try_remove_room(&room) {
         return HttpResponse::InternalServerError().json(e.to_string());
     }
     HttpResponse::Ok().json("Room successfully deleted")
 }
 
-#[get("/state")]
-pub async fn state(house: SmartHouse) -> HttpResponse {
-    let rooms_mtx = house.lock().unwrap();
-    let rooms: Vec<String> = rooms_mtx
-        .get_rooms()
-        .into_iter()
-        .map(|s| s.to_owned())
-        .collect();
-    drop(rooms_mtx);
-    let house = house.lock().unwrap();
-    let mut devices: Vec<&str> = Vec::new();
-    for room in &rooms {
-        let mut dvcs = house.get_devices(room);
-        devices.append(&mut dvcs)
-    }
-    println!("sending state: {:?}", devices);
-    HttpResponse::Ok().json(devices)
+pub async fn rooms<T>(state: SmartHouse<T>) -> HttpResponse {
+    let house = state.house.lock().unwrap();
+    let rooms: Vec<String> = house.get_rooms().into_iter().map(|s| s.to_owned()).collect();
+    drop(house);
+    HttpResponse::Ok().json(rooms)
 }
+
+pub async fn devices<T>(state: SmartHouse<T>, path: web::Path<String>) -> HttpResponse {
+    let house = state.house.lock().unwrap();
+    match house.get_devices(path.as_str()) {
+        Err(e) => HttpResponse::InternalServerError().json(e.to_string()),
+        Ok(vec) => {
+            let devices: Vec<String> = vec.into_iter().map(|s| s.to_owned()).collect();
+            HttpResponse::Ok().json(devices)
+        }
+    }
+}
+
+pub async fn report<T: DeviceInfoProvider>(state: SmartHouse<T>) -> HttpResponse {
+    let house = state.house.lock().unwrap();
+    let provider = state.provider.as_ref();
+    let report = house.get_report(provider);
+    println!("generated report: {:?}", &report);
+    HttpResponse::Ok().json(report)
+}
+
+
 #[derive(Serialize, Deserialize)]
 pub struct NewRoom {
     name: String,
