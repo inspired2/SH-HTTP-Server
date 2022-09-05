@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use smart_house::{DeviceInfoProvider};
 use crate::State;
 use actix_web::{
     web::{self, Data, Json},
     HttpResponse,
 };
+use serde::{Deserialize, Serialize};
+use smart_house::DeviceInfoProvider;
 
 type SmartHouse<T> = Data<State<T>>;
 
@@ -25,9 +25,17 @@ pub async fn add_device<T>(state: SmartHouse<T>, device: Json<NewDevice>) -> Htt
     HttpResponse::Ok().json("Device successfully added")
 }
 
-pub async fn remove_device<T>(state: SmartHouse<T>, path: web::Path<(String, String)>) -> HttpResponse {
+pub async fn remove_device<T>(
+    state: SmartHouse<T>,
+    path: web::Path<(String, String)>,
+) -> HttpResponse {
     let (room, device) = path.into_inner();
-    if let Err(e) = state.house.lock().unwrap().try_remove_device(&room, &device) {
+    if let Err(e) = state
+        .house
+        .lock()
+        .unwrap()
+        .try_remove_device(&room, &device)
+    {
         return HttpResponse::InternalServerError().json(e.to_string());
     }
     HttpResponse::Ok().json("Device successfully removed")
@@ -43,7 +51,11 @@ pub async fn remove_room<T>(state: SmartHouse<T>, path: web::Path<String>) -> Ht
 
 pub async fn rooms<T>(state: SmartHouse<T>) -> HttpResponse {
     let house = state.house.lock().unwrap();
-    let rooms: Vec<String> = house.get_rooms().into_iter().map(|s| s.to_owned()).collect();
+    let rooms: Vec<String> = house
+        .get_rooms()
+        .into_iter()
+        .map(|s| s.to_owned())
+        .collect();
     drop(house);
     HttpResponse::Ok().json(rooms)
 }
@@ -66,7 +78,6 @@ pub async fn report<T: DeviceInfoProvider>(state: SmartHouse<T>) -> HttpResponse
     println!("generated report: {:?}", &report);
     HttpResponse::Ok().json(report)
 }
-
 
 #[derive(Serialize, Deserialize)]
 pub struct NewRoom {
