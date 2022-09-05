@@ -19,7 +19,7 @@ POST    /add_room
 payload:
 
 {
-    "name": "roomName",   
+    "name": "roomName"
 }
 
 #### Add device:
