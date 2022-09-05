@@ -16,7 +16,7 @@ cargo run --example server
 ### Routes
 #### Add room:
 POST    /add_room
-payload:
+##### payload:
 
 {
     "name": "roomName"
@@ -24,7 +24,7 @@ payload:
 
 #### Add device:
 POST     /add_device
-payload:
+##### payload:
 
 {
     "device": "deviceName",
