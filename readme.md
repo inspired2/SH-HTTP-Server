@@ -13,8 +13,8 @@ cargo run --example server
 
 
 ## 2. send http requests via postman, insomnia, etc.
-### Routes
-#### Add room:
+## Routes
+### Add room:
 POST    /add_room
 ##### payload:
 
@@ -22,7 +22,7 @@ POST    /add_room
     "name": "roomName"
 }
 
-#### Add device:
+### Add device:
 POST     /add_device
 ##### payload:
 
@@ -31,17 +31,17 @@ POST     /add_device
     "room": "roomName"
 }
 
-#### Get report:
+### Get report:
 GET     /report
 
-#### Get rooms: 
+### Get rooms: 
 GET     /rooms
 
-#### Get devices in room:
+### Get devices in room:
 GET     /devices/{room}
 
-#### Delete room:
+### Delete room:
 DELETE     /{room}
 
-#### Delete device: 
+### Delete device: 
 DELETE     /{room}/{device}
